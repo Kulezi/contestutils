@@ -1,0 +1,116 @@
+#!/bin/bash
+wrong_usage() {
+    echo "stress: stress test a c++ solution on, terminates on first non-accepted verdict or after n_tests tests"
+    echo "usage: stress [-s <seed>] [-t <n_tests>] [-c <compile_script] [-w <test_directory>] <brute> <model> <gen>"
+    echo "  -w disables terminating and saves all tests with brute answers to test_directory"
+    exit 1
+}
+
+check_exit() {
+    local RET=$?
+    if [[ ${RET} -ne 0 ]]; then
+        echo "Return code not 0 but ${RET}"
+        exit 1
+    fi 
+}
+
+run () { # run <program> <test> <name>
+    local TIMEFILE=${3}time
+    /usr/bin/time -f "%e" -o ${TIMEFILE} ./${1} < ${2} > ${3}.out
+    check_exit
+}
+
+RED=`tput setaf 1`
+GREEN=`tput setaf 2`
+RESET=`tput sgr0`
+
+INF=1000000000
+NUMTESTS=$INF
+COMPILE="cfast"
+SEED=0
+
+while getopts "s:t:c:w:" flag; do
+    case $flag in
+        s)
+            SEED=$OPTARG
+        ;;
+        t)
+            NUMTESTS=$OPTARG
+        ;;
+        c)
+            COMPILE=$OPTARG
+        ;;
+        w)
+            SAVEDIR=$OPTARG
+            mkdir $SAVEDIR
+            check_exit
+
+            mkdir $SAVEDIR/AC
+            mkdir $SAVEDIR/WA
+            if [[ $NUMTESTS = $INF ]]; then
+                NUMTESTS=10000
+            fi
+        ;;
+        \?)
+            wrong_usage
+        ;;
+    esac
+done
+
+
+shift $((OPTIND-1))
+echo "Remaining args are: <${@}>"
+
+if [[ $# -ne 3 ]]; then
+    wrong_usage
+    exit 1
+fi
+
+BRUTE=$1
+MODEL=$2
+GEN=$3
+
+echo brute: ${BRUTE} model: ${MODEL} gen: ${GEN} seed: ${SEED} n_tests: ${NUMTESTS} compile: ${COMPILE} save_dir: ${SAVEDIR}
+
+$COMPILE $BRUTE && $COMPILE $MODEL && $COMPILE $GEN
+check_exit
+
+TC=0
+while true
+do
+    TC=$(($TC + 1))
+    if [[ $TC -gt $NUMTESTS ]]; then
+        exit 0
+    fi
+
+    TEST="test.in"
+
+    echo $SEED | ./$GEN > $TEST
+
+    run $BRUTE $TEST brute
+    run $MODEL $TEST model
+    
+    BRUTETIME=$(cat brutetime)
+    MODELTIME=$(cat modeltime)
+
+    cmp brute.out model.out > /dev/null
+    if [[ $? -ne 0 ]]; then
+        echo $TC ${RED}Wrong Answer${RESET} brute:${BRUTETIME} model:${MODELTIME}
+
+        if [[ $SAVEDIR = "" ]]; then
+            exit 1
+        fi
+
+        cp $TEST $SAVEDIR/WA/$TC.in
+        cp brute.out $SAVEDIR/WA/$TC.out
+    else
+        echo $TC ${GREEN}Accepted${RESET} brute: ${BRUTETIME} model:${MODELTIME}
+
+        if [[ $SAVEDIR != "" ]]; then    
+            cp $TEST $SAVEDIR/AC/$TC.in
+            cp brute.out $SAVEDIR/AC/$TC.out
+        fi
+    fi
+
+    SEED=$(($SEED + 1))
+done
