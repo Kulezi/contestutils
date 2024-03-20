@@ -1,0 +1,4 @@
+#!/bin/bash
+mkdir $1
+templ $1/template.cpp
+code $1
