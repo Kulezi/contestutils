@@ -1,10 +1,10 @@
 #!/bin/bash
 wrong_usage() {
     echo "stress: stress test a c++ solution on, terminates on first non-accepted verdict or after n_tests tests"
-    echo "usage: stress [-s <seed>] [-t <n_tests>] [-c <compile_script] [-w <test_directory>] <brute> <model> <gen>"
+    echo "usage: stress [-s <seed>] [-t <n_tests>] [-c <compile_script] [-w <test_directory>] [-p <test_prefix>] <brute> <model> <gen>"
     echo "  -w disables terminating and saves all tests with brute answers to test_directory"
     exit 1
-}
+} 
 
 check_exit() {
     local RET=$?
@@ -29,7 +29,7 @@ NUMTESTS=$INF
 COMPILE="cfast"
 SEED=0
 
-while getopts "s:t:c:w:" flag; do
+while getopts "s:t:c:w:p:" flag; do
     case $flag in
         s)
             SEED=$OPTARG
@@ -43,13 +43,14 @@ while getopts "s:t:c:w:" flag; do
         w)
             SAVEDIR=$OPTARG
             mkdir $SAVEDIR
-            check_exit
+            # check_exit
 
-            mkdir $SAVEDIR/AC
-            mkdir $SAVEDIR/WA
             if [[ $NUMTESTS = $INF ]]; then
                 NUMTESTS=10000
             fi
+        ;;
+        p)
+            PREFIX=$OPTARG
         ;;
         \?)
             wrong_usage
@@ -101,14 +102,14 @@ do
             exit 1
         fi
 
-        cp $TEST $SAVEDIR/WA/$TC.in
-        cp brute.out $SAVEDIR/WA/$TC.out
+        cp $TEST $SAVEDIR/$TC.in
+        cp brute.out $SAVEDIR/$TC.out
     else
         echo $TC ${GREEN}Accepted${RESET} brute: ${BRUTETIME} model:${MODELTIME}
 
         if [[ $SAVEDIR != "" ]]; then    
-            cp $TEST $SAVEDIR/AC/$TC.in
-            cp brute.out $SAVEDIR/AC/$TC.out
+            cp $TEST $SAVEDIR/$PREFIX$TC.in
+            cp brute.out $SAVEDIR/$PREFIX$TC.out
         fi
     fi
 
