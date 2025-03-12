@@ -1,0 +1,56 @@
+#!/bin/bash
+if [[ $# -ne 3 ]]; then
+    echo "usage: ./eval.sh <solution> <test> [timelimit w sekundach]"
+    exit 1
+fi
+
+RESET=$(tput setaf 0)
+GREEN=$(tput setaf 2)
+RED=$(tput setaf 1)
+BLUE=$(tput setaf 4)
+
+SOL=$1
+TEST=$2
+TL=$3
+
+testname=$(basename $TEST)
+model_out=${TEST%in}out
+sol_out=.solutions/${testname%in}out
+time_out=.solutions/${testname%in}time
+run() {
+    timeout $TL /usr/bin/time -f "seconds=%e\nkbytes=%M" -o $time_out ./$1 < $2 > $sol_out
+    exitcode=$?
+    # Jak program zakończył wykonanie z kodem 124 (SIGTERM) to znaczy, że komenda timeout go zabiła.
+    if [ $exitcode -eq 124 ]; then
+        echo "$testname $BLUE[TLE]$RESET"
+        exit 1
+    elif [ $exitcode -ne 0 ]; then
+        echo "$testname $RED[RE]$RESET"
+        exit 2
+    fi
+}
+
+verify() {
+    # ./verify $1 $2 #(customowe sprawdzanko)
+    diff $1 $2 >/dev/null
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+
+    return 0
+}
+
+run $SOL $TEST || exit 1
+verify $sol_out $model_out
+
+
+
+if [ $? -ne 0 ]; then
+    source $time_out
+    printf "$testname\t $RED[FAIL]$RESET ${seconds}s $(expr ${kbytes} / 1024)MB\n"
+    exit 1
+else 
+    source $time_out
+    printf "$testname\t $GREEN[OK]$RESET ${seconds}s $(expr ${kbytes} / 1024)MB\n"
+    exit 0
+fi

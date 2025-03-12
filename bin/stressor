@@ -1,0 +1,34 @@
+#!/bin/bash
+
+if [ $# -lt 2 ]; then
+    echo "usage: ./stressor.sh <rozw> <folder z testami> [timelimit w sekundach]"
+    exit 1
+fi 
+
+TESTS=$2
+SOL=$1
+N_CORES=$(nproc --all)
+TL=100000
+if [ $# -ge 3 ]; then
+    TL=$3
+fi
+
+mkdir .solutions || true
+LOG=.solutions/run.log
+
+ls -d $PWD/$TESTS/*.in | parallel -j$N_CORES "evaluator $SOL {} $TL" | tee $LOG
+OK=$(grep -c "[OK]" $LOG)
+TLE=$(grep -c "[TLE]" $LOG)
+FAIL=$(grep -c "[FAIL]" $LOG)
+RE=$(grep -c "[RE]" $LOG)
+
+TOTAL=$((OK+TLE+FAIL+RE))
+
+echo $OK/$TOTAL passed
+if [ $OK -ne $TOTAL ]; then
+    echo "OK: $OK"
+    echo "WA: $FAIL"
+    echo "TLE: $TLE"
+    echo "RE: $RE"
+fi
+
