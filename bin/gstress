@@ -1,0 +1,106 @@
+#!/bin/bash
+
+if [ $# -lt 3 ]; then
+    echo "usage: gstress <model> <user> <gen> [timelimit_seconds] [test_dir]"
+    exit 1
+fi
+
+MODEL=$1
+USER=$2
+GEN=$3
+
+cfast "$MODEL" && cfast "$USER" && cfast "$GEN" || exit 1
+
+TL=10
+[ $# -ge 4 ] && TL=$4
+
+TEST_DIR="pputra_tests"
+[ $# -ge 5 ] && TEST_DIR=$5
+
+N_CORES=$(nproc --all)
+trap 'echo "Aborted."; pkill -P $$; exit 1' INT
+
+mkdir -p .solutions/slowest
+LOG=.solutions/run.log
+
+TOTAL_SUM=0
+OK_SUM=0
+
+GLOBAL_MAX_TIME=0
+GLOBAL_MAX_MEM=0
+
+SLOWEST_TIME_TEST=""
+MAX_MEM_TEST=""
+
+SLOWEST_TIME_ITER=0
+MAX_MEM_ITER=0
+
+ITER=0
+
+while true; do
+    ITER=$((ITER + 1))
+
+    gentests "$MODEL" "$GEN" 100 "$TEST_DIR"
+
+    ls -d "$PWD/$TEST_DIR"/*.in | \
+        parallel -j"$N_CORES" "evaluator $MODEL {} $TL" > "$LOG"
+
+    OK=$(grep -c "\[OK\]" "$LOG")
+    TLE=$(grep -c "\[TLE\]" "$LOG")
+    FAIL=$(grep -c "\[FAIL\]" "$LOG")
+    RE=$(grep -c "\[RE\]" "$LOG")
+
+    TOTAL=$((OK + TLE + FAIL + RE))
+    OK_SUM=$((OK_SUM + OK))
+    TOTAL_SUM=$((TOTAL_SUM + TOTAL))
+
+    if [ "$OK" -ne "$TOTAL" ]; then
+        cat "$LOG"
+        echo "OK:  $OK"
+        echo "WA:  $FAIL"
+        echo "TLE: $TLE"
+        echo "RE:  $RE"
+        exit 1
+    fi
+
+    read ITER_MAX_TIME ITER_MAX_MEM ITER_TIME_TEST ITER_MEM_TEST < <(
+        awk '
+          {
+            # strip ANSI escape sequences
+            gsub(/\x1B\[[0-9;]*[A-Za-z]/, "", $0)
+          }
+          /\[OK\]|\[TLE\]|\[FAIL\]|\[RE\]/ {
+            sub(/s$/, "", $3)
+            sub(/MB$/, "", $4)
+
+            if ($3 > max_t) { max_t = $3; ttest = $1 }
+            if ($4 > max_m) { max_m = $4; mtest = $1 }
+          }
+          END { print max_t, max_m, ttest, mtest }
+        ' "$LOG"
+    )
+
+    # Global max TIME
+    if awk "BEGIN {exit !($ITER_MAX_TIME > $GLOBAL_MAX_TIME)}"; then
+        GLOBAL_MAX_TIME=$ITER_MAX_TIME
+        SLOWEST_TIME_TEST=$(basename "$ITER_TIME_TEST")
+        SLOWEST_TIME_ITER=$ITER
+        cp "$TEST_DIR/$SLOWEST_TIME_TEST" \
+           ".solutions/slowest/slowest_time.in"
+    fi
+
+    # Global max MEMORY
+    if (( ITER_MAX_MEM > GLOBAL_MAX_MEM )); then
+        GLOBAL_MAX_MEM=$ITER_MAX_MEM
+        MAX_MEM_TEST=$(basename "$ITER_MEM_TEST")
+        MAX_MEM_ITER=$ITER
+        cp "$TEST_DIR/$MAX_MEM_TEST" \
+           ".solutions/slowest/max_mem.in"
+    fi
+
+    echo "Passed: $OK_SUM/$TOTAL_SUM"
+    echo "Global max time: ${GLOBAL_MAX_TIME}s (test: $SLOWEST_TIME_TEST, iter: $SLOWEST_TIME_ITER)"
+    echo "Global max mem:  ${GLOBAL_MAX_MEM}MB (test: $MAX_MEM_TEST, iter: $MAX_MEM_ITER)"
+    echo "------------------------------------------------------------"
+done
+

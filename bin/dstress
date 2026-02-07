@@ -1,19 +1,23 @@
 #!/bin/bash
 
 if [ $# -lt 2 ]; then
-    echo "usage: ./stressor.sh <rozw> <folder z testami> [timelimit w sekundach]"
+    echo "usage: dstress <program> <folder z testami> [timelimit w sekundach]"
     exit 1
 fi 
 
 TESTS=$2
 SOL=$1
 N_CORES=$(nproc --all)
-TL=100000
+TL=10
 if [ $# -ge 3 ]; then
     TL=$3
 fi
 
-mkdir .solutions || true
+cfast $SOL
+
+trap 'echo "Aborted."; pkill -P $$; exit 1' INT
+
+mkdir -p .solutions || true
 LOG=.solutions/run.log
 
 ls -d $PWD/$TESTS/*.in | parallel -j$N_CORES "evaluator $SOL {} $TL" | tee $LOG

@@ -10,4 +10,4 @@ set -o xtrace
 flags=""
 
 
-g++ -O3 -std=c++20 $flags -o $basename $basename.cpp
+g++ -g3 -O3 -static -std=c++23 $flags -o $basename $basename.cpp

@@ -1,0 +1,27 @@
+#!/bin/bash
+
+if [ $# -lt 2 ]; then
+    echo "usage: gentests <model> <gen> [ile (default 16)] [folder]"
+    exit 1
+fi 
+MODEL=$1
+GEN=$2
+CNT=16
+if [ $# -ge 3 ]; then
+    CNT=$3
+fi
+
+
+TEST_DIR="pputra_tests"
+if [ $# -ge 4 ]; then
+    TEST_DIR=$4
+fi
+N_CORES=$(nproc --all)
+
+mkdir -p $PWD/$TEST_DIR || true
+LOG=.solutions/run.log
+
+
+seq -w 1 $CNT | parallel -j"$N_CORES" "gin $GEN $PWD/$TEST_DIR/{}.in"
+
+seq -w 1 $CNT | parallel -j"$N_CORES" "gout $MODEL $PWD/$TEST_DIR/{}.in"

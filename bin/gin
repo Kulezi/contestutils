@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ $# -ne 2 ]; then
+    echo "usage: gin <gen> <testname>"
+    exit 1
+fi
+
+
+GEN=$1
+TESTNAME=$2
+
+./$GEN > $TESTNAME

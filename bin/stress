@@ -1,8 +1,9 @@
 #!/bin/bash
 wrong_usage() {
     echo "stress: stress test a c++ solution on, terminates on first non-accepted verdict or after n_tests tests"
-    echo "usage: stress [-s <seed>] [-t <n_tests>] [-c <compile_script] [-w <test_directory>] [-p <test_prefix>] <brute> <model> <gen>"
+    echo "usage: stress [-v <checker>] [-s <seed>] [-t <n_tests>] [-c <compile_script] [-w <test_directory>] [-p <test_prefix>] <brute> <model> <gen>"
     echo "  -w disables terminating and saves all tests with brute answers to test_directory"
+    echo "  checker supplied with -v flag should be ran like this: ./checker <test.in> <valid.out> <user.out>"
     exit 1
 } 
 
@@ -29,7 +30,7 @@ NUMTESTS=$INF
 COMPILE="cfast"
 SEED=0
 
-while getopts "s:t:c:w:p:" flag; do
+while getopts "s:t:c:w:p:v:" flag; do
     case $flag in
         s)
             SEED=$OPTARG
@@ -39,6 +40,9 @@ while getopts "s:t:c:w:p:" flag; do
         ;;
         c)
             COMPILE=$OPTARG
+        ;;
+        v)
+            CHECKER=$OPTARG
         ;;
         w)
             SAVEDIR=$OPTARG
@@ -76,6 +80,10 @@ echo brute: ${BRUTE} model: ${MODEL} gen: ${GEN} seed: ${SEED} n_tests: ${NUMTES
 $COMPILE $BRUTE && $COMPILE $MODEL && $COMPILE $GEN
 check_exit
 
+if [[ -v CHECKER ]]; then
+    $COMPILE $CHECKER
+fi
+
 TC=0
 while true
 do
@@ -94,7 +102,12 @@ do
     BRUTETIME=$(cat brutetime)
     MODELTIME=$(cat modeltime)
 
-    cmp brute.out model.out > /dev/null
+    if [[ -v CHECKER ]]; then
+        ./$CHECKER $TEST brute.out model.out
+    else
+        cmp brute.out model.out > /dev/null
+    fi
+
     if [[ $? -ne 0 ]]; then
         echo $TC ${RED}Wrong Answer${RESET} brute:${BRUTETIME} model:${MODELTIME}
 

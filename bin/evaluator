@@ -1,10 +1,11 @@
 #!/bin/bash
 if [[ $# -ne 3 ]]; then
-    echo "usage: ./eval.sh <solution> <test> [timelimit w sekundach]"
+    echo $@
+    echo "usage: ./evaluator <solution> <test> [timelimit w sekundach]"
     exit 1
 fi
 
-RESET=$(tput setaf 0)
+RESET=$(tput setaf 8)
 GREEN=$(tput setaf 2)
 RED=$(tput setaf 1)
 BLUE=$(tput setaf 4)
@@ -22,10 +23,10 @@ run() {
     exitcode=$?
     # Jak program zakończył wykonanie z kodem 124 (SIGTERM) to znaczy, że komenda timeout go zabiła.
     if [ $exitcode -eq 124 ]; then
-        echo "$testname $BLUE[TLE]$RESET"
+        echo "${RESET}$testname $BLUE[TLE]$RESET"
         exit 1
     elif [ $exitcode -ne 0 ]; then
-        echo "$testname $RED[RE]$RESET"
+        echo "${RESET}$testname $RED[RE]$RESET"
         exit 2
     fi
 }
@@ -47,10 +48,10 @@ verify $sol_out $model_out
 
 if [ $? -ne 0 ]; then
     source $time_out
-    printf "$testname\t $RED[FAIL]$RESET ${seconds}s $(expr ${kbytes} / 1024)MB\n"
+    printf "${RESET}$testname\t $RED[FAIL]$RESET ${seconds}s $(expr ${kbytes} / 1024)MB\n"
     exit 1
 else 
     source $time_out
-    printf "$testname\t $GREEN[OK]$RESET ${seconds}s $(expr ${kbytes} / 1024)MB\n"
+    printf "${RESET}$testname\t $GREEN[OK]$RESET ${seconds}s $(expr ${kbytes} / 1024)MB\n"
     exit 0
 fi
